@@ -45,6 +45,8 @@ BADGES = {
                       'p_16_dd_parts_specialscreen_icon_pictureeffect_illust_high_normal'),
     'ricoh-cross':    ('XP', 'R', (170, 176, 235),
                       'p_16_dd_parts_specialscreen_icon_pictureeffect_illust_low_normal'),
+    'custom-lut':     ('CL', 'C', (230, 126, 34),
+                      'p_16_dd_parts_specialscreen_icon_pictureeffect_illust_mid_normal'),
 }
 
 # Original 5x7 glyphs. Only the small set of letters needed by the badges is used.
@@ -56,6 +58,7 @@ FONT = {
     'E': ('11111', '10000', '10000', '11110', '10000', '10000', '11111'),
     'F': ('11111', '10000', '10000', '11110', '10000', '10000', '10000'),
     'H': ('10001', '10001', '10001', '11111', '10001', '10001', '10001'),
+    'L': ('10000', '10000', '10000', '10000', '10000', '10000', '11111'),
     'M': ('10001', '11011', '10101', '10101', '10001', '10001', '10001'),
     'N': ('10001', '11001', '11001', '10101', '10011', '10011', '10001'),
     'P': ('11110', '10001', '10001', '11110', '10000', '10000', '10000'),

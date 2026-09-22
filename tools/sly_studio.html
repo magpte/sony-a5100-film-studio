@@ -1,0 +1,2413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SLY Studio - 索尼胶片预设多核预览与 Delta E 色差质检工作台</title>
+  <style>
+    :root {
+      --bg-main: #0d1117;
+      --bg-card: #161b22;
+      --bg-card-hover: #21262d;
+      --bg-input: #0b0e14;
+      --border: #30363d;
+      --border-accent: #388bfd;
+      --text-primary: #f0f6fc;
+      --text-secondary: #8b949e;
+      --text-muted: #6e7681;
+      --accent: #2f81f7;
+      --accent-glow: rgba(47, 129, 247, 0.25);
+      --success: #238636;
+      --warning: #d29922;
+      --danger: #da3633;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Bar */
+    header {
+      background: var(--bg-card);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-logo {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #2f81f7, #a371f7);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 14px;
+      color: #fff;
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .brand-subtitle {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: 6px;
+    }
+
+    .top-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .core-indicator {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      padding: 4px 10px;
+      border-radius: 6px;
+      color: #58a6ff;
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #3fb950;
+      display: inline-block;
+      box-shadow: 0 0 6px #3fb950;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .toggle-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      font-size: 13px;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .toggle-btn.active {
+      background: var(--accent);
+      color: #fff;
+      font-weight: 500;
+    }
+
+    /* Main Workspace */
+    .workspace {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 310px 1fr 340px;
+      height: calc(100vh - 53px);
+      overflow: hidden;
+    }
+
+    /* Sidebar Panels */
+    .panel {
+      background: var(--bg-card);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .panel-right {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+
+    .panel-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .card {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover {
+      border-color: #484f58;
+    }
+
+    /* Dropzones */
+    .dropzone {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 14px 10px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(22, 27, 34, 0.6);
+      position: relative;
+    }
+
+    .dropzone:hover, .dropzone.dragover {
+      border-color: var(--accent);
+      background: rgba(47, 129, 247, 0.08);
+    }
+
+    .dropzone-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .dropzone-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .dropzone-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .file-input {
+      display: none;
+    }
+
+    .file-loaded-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(35, 134, 54, 0.15);
+      border: 1px solid rgba(35, 134, 54, 0.4);
+      color: #3fb950;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-family: var(--font-mono);
+      margin-top: 6px;
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Built-in Sample Selector */
+    .sample-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .sample-btn {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 6px;
+      border-radius: 6px;
+      font-size: 11px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .sample-btn:hover {
+      border-color: var(--accent);
+      color: var(--text-primary);
+    }
+
+    .sample-btn.active {
+      background: rgba(47, 129, 247, 0.15);
+      border-color: var(--accent);
+      color: #58a6ff;
+      font-weight: 500;
+    }
+
+    /* SLY Info Table */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+      margin-top: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      text-align: center;
+    }
+
+    .info-item {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 4px;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .info-tag {
+      font-size: 9px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .info-val {
+      font-size: 11px;
+      font-weight: 600;
+      color: #e6edf3;
+    }
+
+    /* Center Viewport */
+    .viewport-container {
+      position: relative;
+      background: #05070a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      user-select: none;
+    }
+
+    .viewport-canvas-wrapper {
+      position: relative;
+      box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+      max-width: 96%;
+      max-height: 92%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 4px;
+    }
+
+    canvas {
+      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+
+    /* Comparison Split Slider */
+    .slider-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 2px;
+      background: #fff;
+      cursor: ew-resize;
+      z-index: 5;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.6);
+      transform: translateX(-50%);
+    }
+
+    .slider-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 32px;
+      height: 32px;
+      background: #fff;
+      border-radius: 50%;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #161b22;
+      font-size: 14px;
+      font-weight: bold;
+      pointer-events: none;
+    }
+
+    .label-badge {
+      position: absolute;
+      bottom: 12px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: #fff;
+      z-index: 4;
+      pointer-events: none;
+    }
+
+    .label-left {
+      left: 12px;
+    }
+
+    .label-right {
+      right: 12px;
+    }
+
+    /* Progress Notification Banner */
+    .progress-banner {
+      position: absolute;
+      top: 14px;
+      background: rgba(22, 27, 34, 0.9);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-primary);
+      z-index: 8;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      transition: opacity 0.3s;
+    }
+
+    .progress-bar-bg {
+      width: 140px;
+      height: 6px;
+      background: #21262d;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-bar-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #2f81f7, #2ea043);
+      transition: width 0.15s;
+    }
+
+    /* Bottom Viewport Bar */
+    .viewport-footer {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(22, 27, 34, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 4px 16px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      z-index: 6;
+    }
+
+    .pixel-inspector {
+      font-family: var(--font-mono);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: inline-block;
+    }
+
+    /* Heatmap Legend */
+    .legend-bar {
+      width: 100%;
+      height: 10px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #1b3899, #00b4d8, #2ec4b6, #e9c46a, #e76f51, #d90429);
+      margin: 8px 0 4px 0;
+      border: 1px solid var(--border);
+    }
+
+    .legend-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+    }
+
+    /* Metrics Dashboard */
+    .metric-hero {
+      background: linear-gradient(145deg, rgba(33, 38, 45, 0.8), rgba(13, 17, 23, 0.8));
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .metric-value {
+      font-size: 36px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      line-height: 1;
+      margin: 6px 0;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .metric-status {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 4px;
+    }
+
+    .status-excellent {
+      background: rgba(35, 134, 54, 0.2);
+      color: #3fb950;
+      border: 1px solid rgba(35, 134, 54, 0.4);
+    }
+
+    .status-good {
+      background: rgba(56, 139, 253, 0.2);
+      color: #58a6ff;
+      border: 1px solid rgba(56, 139, 253, 0.4);
+    }
+
+    .status-fair {
+      background: rgba(210, 153, 34, 0.2);
+      color: #d29922;
+      border: 1px solid rgba(210, 153, 34, 0.4);
+    }
+
+    .status-poor {
+      background: rgba(218, 54, 51, 0.2);
+      color: #f85149;
+      border: 1px solid rgba(218, 54, 51, 0.4);
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .stat-box {
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+
+    .stat-title {
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+
+    .stat-num {
+      font-size: 16px;
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: #f0f6fc;
+      margin-top: 2px;
+    }
+
+    /* ColorChecker 24 Grid */
+    .patch-grid {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 3px;
+      margin-top: 8px;
+    }
+
+    .patch-cell {
+      aspect-ratio: 1;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: transform 0.1s;
+    }
+
+    .patch-cell:hover {
+      transform: scale(1.08);
+      z-index: 2;
+      border-color: #fff;
+    }
+
+    .patch-split-left {
+      position: absolute;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+    }
+
+    .patch-split-right {
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 50%;
+    }
+
+    .patch-de-tag {
+      position: absolute;
+      bottom: 1px;
+      right: 1px;
+      background: rgba(0, 0, 0, 0.7);
+      color: #fff;
+      font-size: 8px;
+      font-family: var(--font-mono);
+      padding: 0 2px;
+      border-radius: 2px;
+    }
+
+    /* Gamma Curve Canvas */
+    .curve-canvas {
+      width: 100%;
+      height: 110px;
+      background: #090c10;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      margin-top: 6px;
+    }
+
+    /* Radio Group */
+    .radio-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .radio-option {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      color: var(--text-secondary);
+    }
+
+    .radio-option:hover {
+      color: var(--text-primary);
+    }
+
+    .radio-option input[type="radio"] {
+      accent-color: var(--accent);
+    }
+
+    /* Matrix display */
+    .matrix-display {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 3px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      text-align: right;
+      background: #090c10;
+      padding: 6px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+
+    .matrix-cell {
+      padding: 2px 4px;
+      background: rgba(255, 255, 255, 0.02);
+      border-radius: 2px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #30363d;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #484f58;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Bar -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">S</div>
+      <div>
+        <span class="brand-title">SLY Studio</span>
+        <span class="brand-subtitle">索尼 A6000/A5100 胶片调色与多核质检台</span>
+      </div>
+    </div>
+
+    <div class="top-controls">
+      <div class="core-indicator" id="coreIndicator">
+        <span class="pulse-dot"></span>
+        <span id="coreCountText">多核并行引擎</span>
+      </div>
+
+      <div class="view-toggle">
+        <button class="toggle-btn active" id="btnModeWipe" title="卷帘对比视图">卷帘对比 (Wipe)</button>
+        <button class="toggle-btn" id="btnModeHeatmap" title="CIEDE2000 色差热力图">色差热力图 (Heatmap)</button>
+        <button class="toggle-btn" id="btnModeTarget" title="仅查看 SLY 效果">SLY 渲染效果</button>
+        <button class="toggle-btn" id="btnModeSource" title="仅查看参考原版">参考原版效果</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Workspace Grid -->
+  <div class="workspace">
+    
+    <!-- Left Panel: Inputs & Presets -->
+    <div class="panel">
+      
+      <!-- 1. Image Source -->
+      <div>
+        <div class="panel-title">1. 测试图像 (Image Source)</div>
+        <div class="dropzone" id="imgDropzone">
+          <div class="dropzone-icon">🖼️</div>
+          <div class="dropzone-label">点击或拖拽测试图片 (支持大图)</div>
+          <div class="dropzone-hint">支持 2400万像素 (6000×4000) 照片</div>
+          <input type="file" id="imgFileInput" class="file-input" accept="image/*">
+          <div id="imgBadge" class="file-loaded-badge" style="display:none;">已载入图片</div>
+        </div>
+
+        <div style="margin-top: 10px;">
+          <span style="font-size: 11px; color: var(--text-muted);">或选用内置标准测试图：</span>
+          <div class="sample-grid">
+            <button class="sample-btn active" id="btnSampleCC">ColorChecker 24</button>
+            <button class="sample-btn" id="btnSampleRamp">灰阶渐变条 (Ramp)</button>
+            <button class="sample-btn" id="btnSamplePortrait">标准人像 (Portrait)</button>
+            <button class="sample-btn" id="btnSampleLandscape">风景高反差 (Scenery)</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. SLY Preset Load -->
+      <div>
+        <div class="panel-title">2. SLY 预设文件 (.SLY)</div>
+        <div class="dropzone" id="slyDropzone">
+          <div class="dropzone-icon">🎞️</div>
+          <div class="dropzone-label">载入 SLY 文件 (2160 字节)</div>
+          <div class="dropzone-hint">相机 SD 卡 SONY_LUT 目录文件</div>
+          <input type="file" id="slyFileInput" class="file-input" accept=".sly,.SLY">
+          <div id="slyBadge" class="file-loaded-badge" style="display:none;">未载入</div>
+        </div>
+
+        <!-- SLY Info Box -->
+        <div id="slyInfoCard" class="card" style="margin-top: 8px; display: none;">
+          <div style="font-size: 12px; font-weight: 600; color: #58a6ff; margin-bottom: 4px;" id="slyDisplayName">预设名称</div>
+          <div class="info-grid">
+            <div class="info-item"><div class="info-tag">格式版本</div><div class="info-val" id="slyVerVal">v1</div></div>
+            <div class="info-item"><div class="info-tag">底模基底</div><div class="info-val" id="slyModeVal">Neutral</div></div>
+            <div class="info-item"><div class="info-tag">LB / CC 色偏</div><div class="info-val" id="slyWbVal">0 / 0</div></div>
+            <div class="info-item"><div class="info-tag">CinemaTone</div><div class="info-val" id="slyToneVal">Off</div></div>
+            <div class="info-item" style="grid-column: span 2;"><div class="info-tag">6轴色彩深度 (R,G,B,C,M,Y)</div><div class="info-val" id="slyDepthsVal">0, 0, 0, 0, 0, 0</div></div>
+            <div class="info-item"><div class="info-tag">Gamma点数</div><div class="info-val">1024 (10-bit)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Original CUBE (Optional for Quality Benchmark) -->
+      <div>
+        <div class="panel-title">
+          <span>3. 原版 3D LUT (.CUBE)</span>
+          <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">用于保真度质检</span>
+        </div>
+        <div class="dropzone" id="cubeDropzone">
+          <div class="dropzone-icon">🧊</div>
+          <div class="dropzone-label">载入原版 .cube 文件</div>
+          <div class="dropzone-hint">用于对比 SLY 拟合损失与色差</div>
+          <input type="file" id="cubeFileInput" class="file-input" accept=".cube">
+          <div id="cubeBadge" class="file-loaded-badge" style="display:none;">未载入</div>
+        </div>
+      </div>
+
+      <!-- 4. Comparison Mode Selector -->
+      <div>
+        <div class="panel-title">4. 对比基准 (Reference Mode)</div>
+        <div class="radio-group card">
+          <label class="radio-option">
+            <input type="radio" name="compRef" value="cube" id="refCubeRadio" checked disabled>
+            <span>原版 3D LUT (.cube) vs SLY (硬件拟合质检)</span>
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="compRef" value="raw" id="refRawRadio">
+            <span>未调色原图 (Original) vs SLY (调色前后对比)</span>
+          </label>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Center Viewport: Canvas & Comparison -->
+    <div class="viewport-container" id="viewportContainer">
+      
+      <!-- Multi-core Progress Banner -->
+      <div class="progress-banner" id="progressBanner" style="display: none;">
+        <span id="progressText">多核并行质检中: 0%</span>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="progressBarFill"></div>
+        </div>
+      </div>
+
+      <div class="viewport-canvas-wrapper" id="canvasWrapper">
+        <canvas id="mainCanvas"></canvas>
+        
+        <!-- Interactive Split Line -->
+        <div class="slider-line" id="sliderLine" style="left: 50%;">
+          <div class="slider-handle">↔</div>
+        </div>
+
+        <div class="label-badge label-left" id="labelLeft">原版 (Reference)</div>
+        <div class="label-badge label-right" id="labelRight">SLY 渲染 (Hardware)</div>
+      </div>
+
+      <!-- Footer Bar -->
+      <div class="viewport-footer">
+        <div class="pixel-inspector">
+          <span class="color-dot" id="inspectColorRef" style="background:#888;"></span>
+          <span id="inspectTextRef">Ref: -</span>
+          <span style="color:var(--text-muted);">|</span>
+          <span class="color-dot" id="inspectColorSly" style="background:#888;"></span>
+          <span id="inspectTextSly">SLY: -</span>
+          <span style="color:var(--text-muted);">|</span>
+          <span id="inspectDeltaE" style="color:#58a6ff; font-weight:600;">ΔE₀₀: -</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Panel: Delta E Metrics & Inspector -->
+    <div class="panel panel-right">
+      
+      <!-- Metrics Dashboard -->
+      <div>
+        <div class="panel-title">CIEDE2000 (ΔE₀₀) 色差质检评估</div>
+        
+        <div class="metric-hero">
+          <div class="metric-label">平均色差 (Mean ΔE₀₀)</div>
+          <div class="metric-value" id="meanDeltaE">--</div>
+          <div class="metric-status status-good" id="metricGrade">等待载入预设</div>
+        </div>
+
+        <div class="stats-row">
+          <div class="stat-box">
+            <div class="stat-title">95 分位色差 (P95)</div>
+            <div class="stat-num" id="p95DeltaE">--</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-title">最大色差 (Max ΔE)</div>
+            <div class="stat-num" id="maxDeltaE">--</div>
+          </div>
+        </div>
+
+        <!-- Heatmap Legend -->
+        <div style="margin-top: 12px;">
+          <div style="font-size: 11px; color: var(--text-secondary); display: flex; justify-content: space-between;">
+            <span>色差热力图标尺 (Heatmap Scale)</span>
+            <span id="legendMaxText">ΔE 0 ~ 10+</span>
+          </div>
+          <div class="legend-bar"></div>
+          <div class="legend-labels">
+            <span>0 (完美)</span>
+            <span>1.5</span>
+            <span>3.0</span>
+            <span>5.0 (明显)</span>
+            <span>10+</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ColorChecker 24 Patches -->
+      <div>
+        <div class="panel-title" style="margin-top: 4px;">
+          <span>ColorChecker 24 色块评测</span>
+          <span style="font-size: 10px; color: var(--text-muted); font-weight: normal;">左:原版 | 右:SLY</span>
+        </div>
+        <div class="patch-grid" id="patchGrid">
+          <!-- 24 ColorChecker Patches Generated Dynamically -->
+        </div>
+      </div>
+
+      <!-- Hardware Profile Monitor: Curve & Matrix -->
+      <div>
+        <div class="panel-title" style="margin-top: 4px;">1024 点 Gamma 曲线与 3x3 矩阵</div>
+        <canvas id="curveCanvas" class="curve-canvas" width="280" height="110"></canvas>
+        <div style="margin-top: 6px;">
+          <div style="font-size: 10px; color: var(--text-muted); margin-bottom: 2px;">3×3 RGB 变换矩阵 (/1024)：</div>
+          <div class="matrix-display" id="matrixDisplay">
+            <div class="matrix-cell">1024</div><div class="matrix-cell">0</div><div class="matrix-cell">0</div>
+            <div class="matrix-cell">0</div><div class="matrix-cell">1024</div><div class="matrix-cell">0</div>
+            <div class="matrix-cell">0</div><div class="matrix-cell">0</div><div class="matrix-cell">1024</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <script>
+    /* ==========================================================================
+       1. COLOR SCIENCE ENGINE WITH PRECOMPUTED 256-ENTRY LUT
+       ========================================================================== */
+    const SRGB_TO_LIN_LUT = new Float32Array(256);
+    for (let i = 0; i < 256; i++) {
+      const c = i / 255.0;
+      SRGB_TO_LIN_LUT[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    }
+
+    const ColorScience = {
+      srgbToLinear(c8) {
+        return SRGB_TO_LIN_LUT[c8];
+      },
+
+      linearToSrgb(c) {
+        c = c < 0.0 ? 0.0 : (c > 1.0 ? 1.0 : c);
+        const s = c <= 0.0031308 ? c * 12.92 : 1.055 * Math.pow(c, 1.0 / 2.4) - 0.055;
+        return Math.round(s * 255.0);
+      },
+
+      linearToXyz(r, g, b) {
+        const x = 0.4124564 * r + 0.3575761 * g + 0.1804375 * b;
+        const y = 0.2126729 * r + 0.7151522 * g + 0.0721750 * b;
+        const z = 0.0193339 * r + 0.1191920 * g + 0.9503041 * b;
+        return [x, y, z];
+      },
+
+      xyzToLab(x, y, z) {
+        const xn = 0.95047, yn = 1.00000, zn = 1.08883;
+        const fx = this._labF(x / xn);
+        const fy = this._labF(y / yn);
+        const fz = this._labF(z / zn);
+        const L = Math.max(0.0, 116.0 * fy - 16.0);
+        const a = 500.0 * (fx - fy);
+        const b = 200.0 * (fy - fz);
+        return [L, a, b];
+      },
+
+      _labF(t) {
+        return t > 0.008856 ? Math.cbrt(t) : (7.787 * t) + (16.0 / 116.0);
+      },
+
+      rgbToLab(r8, g8, b8) {
+        const rLin = SRGB_TO_LIN_LUT[r8];
+        const gLin = SRGB_TO_LIN_LUT[g8];
+        const bLin = SRGB_TO_LIN_LUT[b8];
+        const [x, y, z] = this.linearToXyz(rLin, gLin, bLin);
+        return this.xyzToLab(x, y, z);
+      },
+
+      deltaE00(lab1, lab2) {
+        const L1 = lab1[0], a1 = lab1[1], b1 = lab1[2];
+        const L2 = lab2[0], a2 = lab2[1], b2 = lab2[2];
+
+        const avgL = (L1 + L2) * 0.5;
+        const C1 = Math.hypot(a1, b1);
+        const C2 = Math.hypot(a2, b2);
+        const avgC = (C1 + C2) * 0.5;
+
+        const avgC7 = Math.pow(avgC, 7);
+        const G = 0.5 * (1.0 - Math.sqrt(avgC7 / (avgC7 + 6103515625.0))); // 25^7 = 6103515625
+        const a1Prime = (1.0 + G) * a1;
+        const a2Prime = (1.0 + G) * a2;
+
+        const C1Prime = Math.hypot(a1Prime, b1);
+        const C2Prime = Math.hypot(a2Prime, b2);
+        const avgCPrime = (C1Prime + C2Prime) * 0.5;
+
+        let h1Prime = Math.atan2(b1, a1Prime) * (180.0 / Math.PI);
+        if (h1Prime < 0) h1Prime += 360.0;
+        let h2Prime = Math.atan2(b2, a2Prime) * (180.0 / Math.PI);
+        if (h2Prime < 0) h2Prime += 360.0;
+
+        let avgHPrime = 0;
+        if (Math.abs(h1Prime - h2Prime) > 180.0) {
+          avgHPrime = (h1Prime + h2Prime + 360.0) * 0.5;
+        } else {
+          avgHPrime = (h1Prime + h2Prime) * 0.5;
+        }
+
+        const T = 1.0 - 0.17 * Math.cos((avgHPrime - 30.0) * (Math.PI / 180.0))
+                      + 0.24 * Math.cos((2.0 * avgHPrime) * (Math.PI / 180.0))
+                      + 0.32 * Math.cos((3.0 * avgHPrime + 6.0) * (Math.PI / 180.0))
+                      - 0.20 * Math.cos((4.0 * avgHPrime - 63.0) * (Math.PI / 180.0));
+
+        let deltahPrime = 0;
+        if (Math.abs(h2Prime - h1Prime) <= 180.0) {
+          deltahPrime = h2Prime - h1Prime;
+        } else if (h2Prime <= h1Prime) {
+          deltahPrime = h2Prime - h1Prime + 360.0;
+        } else {
+          deltahPrime = h2Prime - h1Prime - 360.0;
+        }
+
+        const deltaLPrime = L2 - L1;
+        const deltaCPrime = C2Prime - C1Prime;
+        const deltaHPrime = 2.0 * Math.sqrt(C1Prime * C2Prime) * Math.sin(deltahPrime * (Math.PI / 360.0));
+
+        const SL = 1.0 + (0.015 * Math.pow(avgL - 50.0, 2)) / Math.sqrt(20.0 + Math.pow(avgL - 50.0, 2));
+        const SC = 1.0 + 0.045 * avgCPrime;
+        const SH = 1.0 + 0.015 * avgCPrime * T;
+
+        const deltaTheta = 30.0 * Math.exp(-Math.pow((avgHPrime - 275.0) / 25.0, 2));
+        const avgCPrime7 = Math.pow(avgCPrime, 7);
+        const RC = 2.0 * Math.sqrt(avgCPrime7 / (avgCPrime7 + 6103515625.0));
+        const RT = -Math.sin(2.0 * deltaTheta * (Math.PI / 180.0)) * RC;
+
+        const de = Math.sqrt(
+          Math.pow(deltaLPrime / SL, 2) +
+          Math.pow(deltaCPrime / SC, 2) +
+          Math.pow(deltaHPrime / SH, 2) +
+          RT * (deltaCPrime / SC) * (deltaHPrime / SH)
+        );
+
+        return isNaN(de) ? 0.0 : de;
+      },
+
+      deltaEToHeatmapColor(de) {
+        let r, g, b;
+        if (de < 1.0) {
+          const t = de;
+          r = 27 * (1 - t) + 0 * t;
+          g = 56 * (1 - t) + 180 * t;
+          b = 153 * (1 - t) + 216 * t;
+        } else if (de < 2.5) {
+          const t = (de - 1.0) / 1.5;
+          r = 0 * (1 - t) + 46 * t;
+          g = 180 * (1 - t) + 196 * t;
+          b = 216 * (1 - t) + 182 * t;
+        } else if (de < 5.0) {
+          const t = (de - 2.5) / 2.5;
+          r = 46 * (1 - t) + 231 * t;
+          g = 196 * (1 - t) + 111 * t;
+          b = 182 * (1 - t) + 81 * t;
+        } else {
+          const t = Math.min(1.0, (de - 5.0) / 5.0);
+          r = 231 * (1 - t) + 217 * t;
+          g = 111 * (1 - t) + 4 * t;
+          b = 81 * (1 - t) + 41 * t;
+        }
+        return [r | 0, g | 0, b | 0, 255];
+      }
+    };
+
+    /* ==========================================================================
+       2. SLY PARSER & ISP RENDERER
+       ========================================================================== */
+    class SLYData {
+      constructor(name, matrix, lb, cc, gamma, options = {}) {
+        this.name = name;
+        this.matrix = matrix;
+        this.lb = lb;
+        this.cc = cc;
+        this.gamma = gamma;
+        this.version = options.version || 1;
+        this.base_color_mode = options.base_color_mode || "neutral";
+        this.cinema_tone = options.cinema_tone || "off";
+        this.depths = options.depths || [0, 0, 0, 0, 0, 0];
+        this.contrast = options.contrast || 0;
+        this.saturation = options.saturation || 0;
+        this.sharpness = options.sharpness || 0;
+        this.dro_mode = options.dro_mode || 0;
+      }
+
+      static fromArrayBuffer(buffer) {
+        if (buffer.byteLength !== 2160 && buffer.byteLength !== 2240) {
+          throw new Error(`SLY 文件大小错误: ${buffer.byteLength} 字节 (应为 2160 或 2240 字节)`);
+        }
+        const dv = new DataView(buffer);
+        const decoder = new TextDecoder("utf-8");
+
+        if (buffer.byteLength === 2160) {
+          const nameBytes = new Uint8Array(buffer, 0, 64);
+          let end = 0;
+          while (end < 64 && nameBytes[end] !== 0) end++;
+          const name = decoder.decode(nameBytes.subarray(0, end)).trim() || "SLY_LUT";
+
+          const matrix = [];
+          for (let i = 0; i < 9; i++) {
+            matrix.push(dv.getInt32(64 + i * 4, true));
+          }
+          const lb = dv.getInt32(64 + 36, true);
+          const cc = dv.getInt32(64 + 40, true);
+
+          const gamma = [];
+          const gammaOffset = 64 + 48;
+          for (let i = 0; i < 1024; i++) {
+            gamma.push(dv.getUint16(gammaOffset + i * 2, true));
+          }
+          return new SLYData(name, matrix, lb, cc, gamma, {
+            version: 1,
+            base_color_mode: "standard",
+            cinema_tone: "off",
+            depths: [0, 0, 0, 0, 0, 0]
+          });
+        } else {
+          // SLY v2 (2240 字节)
+          const nameBytes = new Uint8Array(buffer, 0, 60);
+          let end = 0;
+          while (end < 60 && nameBytes[end] !== 0) end++;
+          const name = decoder.decode(nameBytes.subarray(0, end)).trim() || "SLY_LUT";
+
+          const matrix = [];
+          for (let i = 0; i < 9; i++) {
+            matrix.push(dv.getInt32(64 + i * 4, true));
+          }
+          const lb = dv.getInt32(64 + 36, true);
+          const cc = dv.getInt32(64 + 40, true);
+
+          const modes = ["neutral", "portrait", "standard", "landscape", "blackwhite"];
+          const tones = ["off", "cinema-tone-1", "cinema-tone-2"];
+          const pipeOffset = 112;
+          const modeIdx = dv.getUint8(pipeOffset);
+          const toneIdx = dv.getUint8(pipeOffset + 1);
+
+          const depths = [];
+          for (let i = 0; i < 6; i++) {
+            depths.push(dv.getInt8(pipeOffset + 2 + i));
+          }
+          const contrast = dv.getInt8(pipeOffset + 8);
+          const saturation = dv.getInt8(pipeOffset + 9);
+          const sharpness = dv.getInt8(pipeOffset + 10);
+          const droMode = dv.getUint8(pipeOffset + 11);
+
+          const gamma = [];
+          const gammaOffset = 192;
+          for (let i = 0; i < 1024; i++) {
+            gamma.push(dv.getUint16(gammaOffset + i * 2, true));
+          }
+
+          return new SLYData(name, matrix, lb, cc, gamma, {
+            version: 2,
+            base_color_mode: modes[modeIdx] || "neutral",
+            cinema_tone: tones[toneIdx] || "off",
+            depths: depths,
+            contrast: contrast,
+            saturation: saturation,
+            sharpness: sharpness,
+            dro_mode: droMode
+          });
+        }
+      }
+
+      apply(r, g, b) {
+        // 1. 白平衡硬件偏置 (LB/CC)
+        if (this.lb !== 0 || this.cc !== 0) {
+          r += this.lb * 0.008;
+          b -= this.lb * 0.008;
+          g += this.cc * 0.008;
+          r -= this.cc * 0.004;
+          b -= this.cc * 0.004;
+          r = Math.max(0.0, Math.min(1.0, r));
+          g = Math.max(0.0, Math.min(1.0, g));
+          b = Math.max(0.0, Math.min(1.0, b));
+        }
+
+        // 2. 6 轴色彩深度
+        if (this.depths && this.depths.some(d => d !== 0)) {
+          const mod = this._applyColorDepth(r, g, b);
+          r = mod[0]; g = mod[1]; b = mod[2];
+        }
+
+        // 3. 3x3 颜色矩阵
+        const m = this.matrix;
+        let r1 = (m[0] * r + m[1] * g + m[2] * b) / 1024.0;
+        let g1 = (m[3] * r + m[4] * g + m[5] * b) / 1024.0;
+        let b1 = (m[6] * r + m[7] * g + m[8] * b) / 1024.0;
+
+        r1 = r1 < 0.0 ? 0.0 : (r1 > 1.0 ? 1.0 : r1);
+        g1 = g1 < 0.0 ? 0.0 : (g1 > 1.0 ? 1.0 : g1);
+        b1 = b1 < 0.0 ? 0.0 : (b1 > 1.0 ? 1.0 : b1);
+
+        // 4. 1024 点 Gamma 表
+        let rout = this._evalGamma(r1);
+        let gout = this._evalGamma(g1);
+        let bout = this._evalGamma(b1);
+
+        // 5. Cinema Tone 高光滚降
+        if (this.cinema_tone !== "off") {
+          rout = this._evalCinemaTone(rout);
+          gout = this._evalCinemaTone(gout);
+          bout = this._evalCinemaTone(bout);
+        }
+
+        return [rout, gout, bout];
+      }
+
+      _applyColorDepth(r, g, b) {
+        const mx = Math.max(r, g, b);
+        const mn = Math.min(r, g, b);
+        const df = mx - mn;
+        if (df < 1e-5) return [r, g, b];
+
+        let h;
+        if (mx === r) {
+          h = (60.0 * ((g - b) / df) + 360.0) % 360.0;
+        } else if (mx === g) {
+          h = (60.0 * ((b - r) / df) + 120.0) % 360.0;
+        } else {
+          h = (60.0 * ((r - g) / df) + 240.0) % 360.0;
+        }
+
+        // R=0, G=120, B=240, C=180, M=300, Y=60
+        const centers = [0.0, 120.0, 240.0, 180.0, 300.0, 60.0];
+        let totalDelta = 0.0;
+        for (let i = 0; i < 6; i++) {
+          let diff = Math.abs(h - centers[i]);
+          if (diff > 180.0) diff = 360.0 - diff;
+          if (diff < 60.0) {
+            const weight = 1.0 - (diff / 60.0);
+            totalDelta += this.depths[i] * weight * 0.08;
+          }
+        }
+
+        const satScale = Math.max(0.0, 1.0 + totalDelta);
+        const mid = (mx + mn) * 0.5;
+        const ro = mid + (r - mid) * satScale;
+        const go = mid + (g - mid) * satScale;
+        const bo = mid + (b - mid) * satScale;
+        return [
+          Math.max(0.0, Math.min(1.0, ro)),
+          Math.max(0.0, Math.min(1.0, go)),
+          Math.max(0.0, Math.min(1.0, bo))
+        ];
+      }
+
+      _evalCinemaTone(val) {
+        if (val > 0.75) {
+          return 0.75 + (val - 0.75) * 0.85;
+        }
+        return val;
+      }
+
+      _evalGamma(val) {
+        const idx = val * 1023.0;
+        const i0 = idx | 0;
+        const i1 = i0 < 1023 ? i0 + 1 : 1023;
+        const frac = idx - i0;
+        const g0 = this.gamma[i0] / 1023.0;
+        const g1 = this.gamma[i1] / 1023.0;
+        return g0 * (1.0 - frac) + g1 * frac;
+      }
+    }
+
+    /* ==========================================================================
+       3. 3D CUBE LUT PARSER & TRILINEAR INTERPOLATOR
+       ========================================================================== */
+    class CubeLUT {
+      constructor(size, data, title) {
+        this.size = size;
+        this.data = data;
+        this.title = title || "CUBE_LUT";
+      }
+
+      static fromText(text) {
+        const lines = text.split(/\r?\n/);
+        let size = 0;
+        let title = "";
+        const dataArr = [];
+
+        for (let line of lines) {
+          line = line.trim();
+          if (!line || line.startsWith("#")) continue;
+          const parts = line.split(/\s+/);
+          const key = parts[0].toUpperCase();
+
+          if (key === "LUT_3D_SIZE") {
+            size = parseInt(parts[1], 10);
+          } else if (key === "TITLE") {
+            title = line.substring(5).trim().replace(/['"]/g, "");
+          } else if (parts.length === 3) {
+            const r = parseFloat(parts[0]);
+            const g = parseFloat(parts[1]);
+            const b = parseFloat(parts[2]);
+            if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+              dataArr.push(r, g, b);
+            }
+          }
+        }
+
+        if (size === 0 || dataArr.length !== size * size * size * 3) {
+          throw new Error(`无效的 3D .cube 文件 (size=${size}, 点数=${dataArr.length / 3})`);
+        }
+
+        return new CubeLUT(size, new Float32Array(dataArr), title);
+      }
+
+      apply(r, g, b) {
+        r = r < 0.0 ? 0.0 : (r > 1.0 ? 1.0 : r);
+        g = g < 0.0 ? 0.0 : (g > 1.0 ? 1.0 : g);
+        b = b < 0.0 ? 0.0 : (b > 1.0 ? 1.0 : b);
+
+        const S = this.size;
+        const N = S - 1;
+        const rf = r * N, gf = g * N, bf = b * N;
+        const r0 = rf | 0, g0 = gf | 0, b0 = bf | 0;
+        const r1 = r0 < N ? r0 + 1 : N;
+        const g1 = g0 < N ? g0 + 1 : N;
+        const b1 = b0 < N ? b0 + 1 : N;
+        const dr = rf - r0, dg = gf - g0, db = bf - b0;
+
+        const S2 = S * S;
+        const getVal = (ri, gi, bi, ch) => this.data[(ri + gi * S + bi * S2) * 3 + ch];
+
+        const out = [0, 0, 0];
+        for (let ch = 0; ch < 3; ch++) {
+          const c000 = getVal(r0, g0, b0, ch), c100 = getVal(r1, g0, b0, ch);
+          const c010 = getVal(r0, g1, b0, ch), c110 = getVal(r1, g1, b0, ch);
+          const c001 = getVal(r0, g0, b1, ch), c101 = getVal(r1, g0, b1, ch);
+          const c011 = getVal(r0, g1, b1, ch), c111 = getVal(r1, g1, b1, ch);
+
+          const v00 = c000 * (1.0 - dr) + c100 * dr;
+          const v01 = c001 * (1.0 - dr) + c101 * dr;
+          const v10 = c010 * (1.0 - dr) + c110 * dr;
+          const v11 = c011 * (1.0 - dr) + c111 * dr;
+
+          const v0 = v00 * (1.0 - dg) + v10 * dg;
+          const v1 = v01 * (1.0 - dg) + v11 * dg;
+
+          const v = v0 * (1.0 - db) + v1 * db;
+          out[ch] = v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+        }
+
+        return out;
+      }
+    }
+
+    /* ==========================================================================
+       4. STANDARD COLORCHECKER 24 CONSTANTS
+       ========================================================================== */
+    const COLORCHECKER_24 = [
+      { name: "Dark Skin", srgb: [115, 82, 68] },
+      { name: "Light Skin", srgb: [194, 150, 130] },
+      { name: "Blue Sky", srgb: [98, 122, 157] },
+      { name: "Foliage", srgb: [87, 108, 67] },
+      { name: "Blue Flower", srgb: [133, 128, 177] },
+      { name: "Bluish Green", srgb: [103, 189, 170] },
+      { name: "Orange", srgb: [214, 126, 44] },
+      { name: "Purplish Blue", srgb: [80, 91, 166] },
+      { name: "Moderate Red", srgb: [193, 90, 99] },
+      { name: "Purple", srgb: [94, 60, 108] },
+      { name: "Yellow Green", srgb: [157, 188, 64] },
+      { name: "Orange Yellow", srgb: [224, 163, 46] },
+      { name: "Blue", srgb: [56, 61, 150] },
+      { name: "Green", srgb: [70, 148, 73] },
+      { name: "Red", srgb: [175, 54, 60] },
+      { name: "Yellow", srgb: [231, 199, 31] },
+      { name: "Magenta", srgb: [187, 86, 149] },
+      { name: "Cyan", srgb: [8, 133, 161] },
+      { name: "White 9.5", srgb: [243, 243, 242] },
+      { name: "Neutral 8", srgb: [200, 200, 200] },
+      { name: "Neutral 6.5", srgb: [160, 160, 160] },
+      { name: "Neutral 5", srgb: [122, 122, 121] },
+      { name: "Neutral 3.5", srgb: [85, 85, 85] },
+      { name: "Black 2", srgb: [52, 52, 52] },
+    ];
+
+    /* ==========================================================================
+       5. INLINE WEB WORKER CODE (FOR ZERO-CONFIG MULTI-CORE PARALLELISM)
+       ========================================================================== */
+    const WORKER_SCRIPT = `
+      // Precomputed sRGB LUT
+      const SRGB_TO_LIN_LUT = new Float32Array(256);
+      for (let i = 0; i < 256; i++) {
+        const c = i / 255.0;
+        SRGB_TO_LIN_LUT[i] = c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+      }
+
+      function rgbToLab(r8, g8, b8) {
+        const rLin = SRGB_TO_LIN_LUT[r8];
+        const gLin = SRGB_TO_LIN_LUT[g8];
+        const bLin = SRGB_TO_LIN_LUT[b8];
+
+        const x = (0.4124564 * rLin + 0.3575761 * gLin + 0.1804375 * bLin) / 0.95047;
+        const y = (0.2126729 * rLin + 0.7151522 * gLin + 0.0721750 * bLin);
+        const z = (0.0193339 * rLin + 0.1191920 * gLin + 0.9503041 * bLin) / 1.08883;
+
+        const fx = x > 0.008856 ? Math.cbrt(x) : (7.787 * x) + (16.0 / 116.0);
+        const fy = y > 0.008856 ? Math.cbrt(y) : (7.787 * y) + (16.0 / 116.0);
+        const fz = z > 0.008856 ? Math.cbrt(z) : (7.787 * z) + (16.0 / 116.0);
+
+        const L = Math.max(0.0, 116.0 * fy - 16.0);
+        const a = 500.0 * (fx - fy);
+        const b = 200.0 * (fy - fz);
+        return [L, a, b];
+      }
+
+      function deltaE00(lab1, lab2) {
+        const L1 = lab1[0], a1 = lab1[1], b1 = lab1[2];
+        const L2 = lab2[0], a2 = lab2[1], b2 = lab2[2];
+
+        const avgL = (L1 + L2) * 0.5;
+        const C1 = Math.hypot(a1, b1);
+        const C2 = Math.hypot(a2, b2);
+        const avgC = (C1 + C2) * 0.5;
+
+        const avgC7 = Math.pow(avgC, 7);
+        const G = 0.5 * (1.0 - Math.sqrt(avgC7 / (avgC7 + 6103515625.0)));
+        const a1Prime = (1.0 + G) * a1;
+        const a2Prime = (1.0 + G) * a2;
+
+        const C1Prime = Math.hypot(a1Prime, b1);
+        const C2Prime = Math.hypot(a2Prime, b2);
+        const avgCPrime = (C1Prime + C2Prime) * 0.5;
+
+        let h1Prime = Math.atan2(b1, a1Prime) * (180.0 / Math.PI);
+        if (h1Prime < 0) h1Prime += 360.0;
+        let h2Prime = Math.atan2(b2, a2Prime) * (180.0 / Math.PI);
+        if (h2Prime < 0) h2Prime += 360.0;
+
+        let avgHPrime = Math.abs(h1Prime - h2Prime) > 180.0 ? (h1Prime + h2Prime + 360.0) * 0.5 : (h1Prime + h2Prime) * 0.5;
+
+        const T = 1.0 - 0.17 * Math.cos((avgHPrime - 30.0) * (Math.PI / 180.0))
+                      + 0.24 * Math.cos((2.0 * avgHPrime) * (Math.PI / 180.0))
+                      + 0.32 * Math.cos((3.0 * avgHPrime + 6.0) * (Math.PI / 180.0))
+                      - 0.20 * Math.cos((4.0 * avgHPrime - 63.0) * (Math.PI / 180.0));
+
+        let deltahPrime = 0;
+        if (Math.abs(h2Prime - h1Prime) <= 180.0) {
+          deltahPrime = h2Prime - h1Prime;
+        } else if (h2Prime <= h1Prime) {
+          deltahPrime = h2Prime - h1Prime + 360.0;
+        } else {
+          deltahPrime = h2Prime - h1Prime - 360.0;
+        }
+
+        const deltaLPrime = L2 - L1;
+        const deltaCPrime = C2Prime - C1Prime;
+        const deltaHPrime = 2.0 * Math.sqrt(C1Prime * C2Prime) * Math.sin(deltahPrime * (Math.PI / 360.0));
+
+        const SL = 1.0 + (0.015 * Math.pow(avgL - 50.0, 2)) / Math.sqrt(20.0 + Math.pow(avgL - 50.0, 2));
+        const SC = 1.0 + 0.045 * avgCPrime;
+        const SH = 1.0 + 0.015 * avgCPrime * T;
+
+        const deltaTheta = 30.0 * Math.exp(-Math.pow((avgHPrime - 275.0) / 25.0, 2));
+        const avgCPrime7 = Math.pow(avgCPrime, 7);
+        const RC = 2.0 * Math.sqrt(avgCPrime7 / (avgCPrime7 + 6103515625.0));
+        const RT = -Math.sin(2.0 * deltaTheta * (Math.PI / 180.0)) * RC;
+
+        const de = Math.sqrt(
+          Math.pow(deltaLPrime / SL, 2) +
+          Math.pow(deltaCPrime / SC, 2) +
+          Math.pow(deltaHPrime / SH, 2) +
+          RT * (deltaCPrime / SC) * (deltaHPrime / SH)
+        );
+        return isNaN(de) ? 0.0 : de;
+      }
+
+      function deltaEToHeatmapColor(de) {
+        let r, g, b;
+        if (de < 1.0) {
+          const t = de;
+          r = 27 * (1 - t);
+          g = 56 * (1 - t) + 180 * t;
+          b = 153 * (1 - t) + 216 * t;
+        } else if (de < 2.5) {
+          const t = (de - 1.0) / 1.5;
+          r = 46 * t;
+          g = 180 * (1 - t) + 196 * t;
+          b = 216 * (1 - t) + 182 * t;
+        } else if (de < 5.0) {
+          const t = (de - 2.5) / 2.5;
+          r = 46 * (1 - t) + 231 * t;
+          g = 196 * (1 - t) + 111 * t;
+          b = 182 * (1 - t) + 81 * t;
+        } else {
+          const t = Math.min(1.0, (de - 5.0) / 5.0);
+          r = 231 * (1 - t) + 217 * t;
+          g = 111 * (1 - t) + 4 * t;
+          b = 81 * (1 - t) + 41 * t;
+        }
+        return [(r | 0), (g | 0), (b | 0), 255];
+      }
+
+      self.onmessage = function(e) {
+        const {
+          chunkIndex,
+          srcBuffer,
+          numPixels,
+          slyMatrix,
+          slyGamma,
+          cubeData,
+          cubeSize,
+          useCube,
+          sampleStep
+        } = e.data;
+
+        const srcBytes = new Uint8Array(srcBuffer);
+        const refBytes = new Uint8Array(numPixels * 4);
+        const slyBytes = new Uint8Array(numPixels * 4);
+        const heatBytes = new Uint8Array(numPixels * 4);
+
+        const samples = [];
+        let deSum = 0;
+        let deMax = 0;
+
+        // Trilinear helper
+        const S = cubeSize || 0;
+        const N = S - 1;
+        const S2 = S * S;
+
+        function applyCube(r, g, b) {
+          const rf = r * N, gf = g * N, bf = b * N;
+          const r0 = rf | 0, g0 = gf | 0, b0 = bf | 0;
+          const r1 = r0 < N ? r0 + 1 : N;
+          const g1 = g0 < N ? g0 + 1 : N;
+          const b1 = b0 < N ? b0 + 1 : N;
+          const dr = rf - r0, dg = gf - g0, db = bf - b0;
+
+          const out = [0, 0, 0];
+          for (let ch = 0; ch < 3; ch++) {
+            const idx00 = (r0 + g0 * S + b0 * S2) * 3 + ch;
+            const idx10 = (r1 + g0 * S + b0 * S2) * 3 + ch;
+            const idx01 = (r0 + g1 * S + b0 * S2) * 3 + ch;
+            const idx11 = (r1 + g1 * S + b0 * S2) * 3 + ch;
+            const idx001 = (r0 + g0 * S + b1 * S2) * 3 + ch;
+            const idx101 = (r1 + g0 * S + b1 * S2) * 3 + ch;
+            const idx011 = (r0 + g1 * S + b1 * S2) * 3 + ch;
+            const idx111 = (r1 + g1 * S + b1 * S2) * 3 + ch;
+
+            const c000 = cubeData[idx00], c100 = cubeData[idx10];
+            const c010 = cubeData[idx01], c110 = cubeData[idx11];
+            const c001 = cubeData[idx001], c101 = cubeData[idx101];
+            const c011 = cubeData[idx011], c111 = cubeData[idx111];
+
+            const v00 = c000 * (1.0 - dr) + c100 * dr;
+            const v01 = c001 * (1.0 - dr) + c101 * dr;
+            const v10 = c010 * (1.0 - dr) + c110 * dr;
+            const v11 = c011 * (1.0 - dr) + c111 * dr;
+
+            const v0 = v00 * (1.0 - dg) + v10 * dg;
+            const v1 = v01 * (1.0 - dg) + v11 * dg;
+            const v = v0 * (1.0 - db) + v1 * db;
+            out[ch] = v < 0.0 ? 0.0 : (v > 1.0 ? 1.0 : v);
+          }
+          return out;
+        }
+
+        function evalGamma(val) {
+          const idx = val * 1023.0;
+          const i0 = idx | 0;
+          const i1 = i0 < 1023 ? i0 + 1 : 1023;
+          const frac = idx - i0;
+          const g0 = slyGamma[i0] / 1023.0;
+          const g1 = slyGamma[i1] / 1023.0;
+          return g0 * (1.0 - frac) + g1 * frac;
+        }
+
+        for (let i = 0; i < numPixels; i++) {
+          const idx = i * 4;
+          const sr = srcBytes[idx];
+          const sg = srcBytes[idx + 1];
+          const sb = srcBytes[idx + 2];
+
+          const rNorm = sr / 255.0;
+          const gNorm = sg / 255.0;
+          const bNorm = sb / 255.0;
+
+          // 1. Reference
+          let rr = sr, rg = sg, rb = sb;
+          if (useCube && cubeData) {
+            const [co_r, co_g, co_b] = applyCube(rNorm, gNorm, bNorm);
+            rr = (co_r * 255.0 + 0.5) | 0;
+            rg = (co_g * 255.0 + 0.5) | 0;
+            rb = (co_b * 255.0 + 0.5) | 0;
+          }
+          refBytes[idx] = rr;
+          refBytes[idx + 1] = rg;
+          refBytes[idx + 2] = rb;
+          refBytes[idx + 3] = 255;
+
+          // 2. SLY
+          let slyR = sr, slyG = sg, slyB = sb;
+          if (slyMatrix && slyGamma) {
+            let r1 = (slyMatrix[0] * rNorm + slyMatrix[1] * gNorm + slyMatrix[2] * bNorm) / 1024.0;
+            let g1 = (slyMatrix[3] * rNorm + slyMatrix[4] * gNorm + slyMatrix[5] * bNorm) / 1024.0;
+            let b1 = (slyMatrix[6] * rNorm + slyMatrix[7] * gNorm + slyMatrix[8] * bNorm) / 1024.0;
+
+            r1 = r1 < 0.0 ? 0.0 : (r1 > 1.0 ? 1.0 : r1);
+            g1 = g1 < 0.0 ? 0.0 : (g1 > 1.0 ? 1.0 : g1);
+            b1 = b1 < 0.0 ? 0.0 : (b1 > 1.0 ? 1.0 : b1);
+
+            slyR = (evalGamma(r1) * 255.0 + 0.5) | 0;
+            slyG = (evalGamma(g1) * 255.0 + 0.5) | 0;
+            slyB = (evalGamma(b1) * 255.0 + 0.5) | 0;
+          }
+          slyBytes[idx] = slyR;
+          slyBytes[idx + 1] = slyG;
+          slyBytes[idx + 2] = slyB;
+          slyBytes[idx + 3] = 255;
+
+          // 3. Delta E & Heatmap
+          const labRef = rgbToLab(rr, rg, rb);
+          const labSly = rgbToLab(slyR, slyG, slyB);
+          const de = deltaE00(labRef, labSly);
+
+          const [hr, hg, hb, ha] = deltaEToHeatmapColor(de);
+          heatBytes[idx] = hr;
+          heatBytes[idx + 1] = hg;
+          heatBytes[idx + 2] = hb;
+          heatBytes[idx + 3] = ha;
+
+          if (i % sampleStep === 0) {
+            samples.push(de);
+            deSum += de;
+            if (de > deMax) deMax = de;
+          }
+        }
+
+        const samplesArr = new Float32Array(samples);
+
+        // Zero-copy transfer of buffers
+        self.postMessage({
+          chunkIndex,
+          refBuffer: refBytes.buffer,
+          slyBuffer: slyBytes.buffer,
+          heatBuffer: heatBytes.buffer,
+          samplesBuffer: samplesArr.buffer,
+          deSum,
+          deMax,
+          numPixels
+        }, [refBytes.buffer, slyBytes.buffer, heatBytes.buffer, samplesArr.buffer]);
+      };
+    `;
+
+    /* ==========================================================================
+       6. WORKER POOL CONTROLLER
+       ========================================================================== */
+    class WorkerPool {
+      constructor(workerScript, numWorkers) {
+        this.numWorkers = numWorkers || Math.min(16, Math.max(2, navigator.hardwareConcurrency || 4));
+        this.workers = [];
+        this.workerUrl = null;
+        this.init(workerScript);
+      }
+
+      init(script) {
+        try {
+          const blob = new Blob([script], { type: "application/javascript" });
+          this.workerUrl = URL.createObjectURL(blob);
+          for (let i = 0; i < this.numWorkers; i++) {
+            this.workers.push(new Worker(this.workerUrl));
+          }
+          console.log(`[WorkerPool] 成功创建 ${this.numWorkers} 核心并行 Worker 池`);
+        } catch (e) {
+          console.warn("[WorkerPool] 创建 Worker 失败，将回退到主线程单核模式:", e);
+          this.workers = [];
+        }
+      }
+
+      get isAvailable() {
+        return this.workers.length > 0;
+      }
+    }
+
+    /* ==========================================================================
+       7. MAIN STUDIO CONTROLLER & TIERED MULTI-CORE SCHEDULER
+       ========================================================================== */
+    class SlyStudioApp {
+      constructor() {
+        this.sourceImg = null;
+        this.slyData = null;
+        this.cubeData = null;
+
+        this.viewMode = "wipe";
+        this.compRef = "raw";
+        this.splitPos = 0.5;
+
+        // Viewport-scale cached buffers
+        this.cachedSourceData = null;
+        this.cachedRefData = null;
+        this.cachedSlyData = null;
+        this.cachedHeatmapData = null;
+
+        this.metrics = { mean: 0, p95: 0, max: 0 };
+        this.workerPool = new WorkerPool(WORKER_SCRIPT);
+
+        this.initDOMElements();
+        this.bindEvents();
+        this.loadSampleChart("colorchecker");
+      }
+
+      initDOMElements() {
+        this.mainCanvas = document.getElementById("mainCanvas");
+        this.ctx = this.mainCanvas.getContext("2d");
+        this.curveCanvas = document.getElementById("curveCanvas");
+        this.curveCtx = this.curveCanvas.getContext("2d");
+
+        this.sliderLine = document.getElementById("sliderLine");
+        this.canvasWrapper = document.getElementById("canvasWrapper");
+        this.labelLeft = document.getElementById("labelLeft");
+        this.labelRight = document.getElementById("labelRight");
+
+        this.imgBadge = document.getElementById("imgBadge");
+        this.slyBadge = document.getElementById("slyBadge");
+        this.cubeBadge = document.getElementById("cubeBadge");
+        this.slyInfoCard = document.getElementById("slyInfoCard");
+        this.slyDisplayName = document.getElementById("slyDisplayName");
+        this.slyLbVal = document.getElementById("slyLbVal");
+        this.slyCcVal = document.getElementById("slyCcVal");
+        this.matrixDisplay = document.getElementById("matrixDisplay");
+
+        this.meanDeltaEEl = document.getElementById("meanDeltaE");
+        this.p95DeltaEEl = document.getElementById("p95DeltaE");
+        this.maxDeltaEEl = document.getElementById("maxDeltaE");
+        this.metricGradeEl = document.getElementById("metricGrade");
+        this.patchGrid = document.getElementById("patchGrid");
+
+        this.inspectColorRef = document.getElementById("inspectColorRef");
+        this.inspectColorSly = document.getElementById("inspectColorSly");
+        this.inspectTextRef = document.getElementById("inspectTextRef");
+        this.inspectTextSly = document.getElementById("inspectTextSly");
+        this.inspectDeltaE = document.getElementById("inspectDeltaE");
+
+        this.refCubeRadio = document.getElementById("refCubeRadio");
+        this.refRawRadio = document.getElementById("refRawRadio");
+
+        this.coreCountText = document.getElementById("coreCountText");
+        this.progressBanner = document.getElementById("progressBanner");
+        this.progressText = document.getElementById("progressText");
+        this.progressBarFill = document.getElementById("progressBarFill");
+
+        const cores = navigator.hardwareConcurrency || 4;
+        this.coreCountText.textContent = `${cores} 核心并行加速`;
+      }
+
+      bindEvents() {
+        const setMode = (mode, btnId) => {
+          this.viewMode = mode;
+          document.querySelectorAll(".view-toggle .toggle-btn").forEach(b => b.classList.remove("active"));
+          document.getElementById(btnId).classList.add("active");
+          this.sliderLine.style.display = (mode === "wipe") ? "block" : "none";
+          this.labelLeft.style.display = (mode === "wipe") ? "block" : "none";
+          this.labelRight.style.display = (mode === "wipe") ? "block" : "none";
+          this.render();
+        };
+
+        document.getElementById("btnModeWipe").onclick = () => setMode("wipe", "btnModeWipe");
+        document.getElementById("btnModeHeatmap").onclick = () => setMode("heatmap", "btnModeHeatmap");
+        document.getElementById("btnModeTarget").onclick = () => setMode("target", "btnModeTarget");
+        document.getElementById("btnModeSource").onclick = () => setMode("source", "btnModeSource");
+
+        this.refCubeRadio.onchange = () => { this.compRef = "cube"; this.processAndRender(); };
+        this.refRawRadio.onchange = () => { this.compRef = "raw"; this.processAndRender(); };
+
+        let dragging = false;
+        const onMove = (e) => {
+          if (!dragging) return;
+          const rect = this.canvasWrapper.getBoundingClientRect();
+          const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+          this.splitPos = x / rect.width;
+          this.sliderLine.style.left = `${this.splitPos * 100}%`;
+          this.render();
+        };
+
+        this.sliderLine.addEventListener("mousedown", (e) => { dragging = true; e.preventDefault(); });
+        window.addEventListener("mousemove", onMove);
+        window.addEventListener("mouseup", () => { dragging = false; });
+
+        this.sliderLine.addEventListener("touchstart", (e) => { dragging = true; });
+        window.addEventListener("touchmove", (e) => {
+          if (!dragging || !e.touches[0]) return;
+          const rect = this.canvasWrapper.getBoundingClientRect();
+          const x = Math.max(0, Math.min(rect.width, e.touches[0].clientX - rect.left));
+          this.splitPos = x / rect.width;
+          this.sliderLine.style.left = `${this.splitPos * 100}%`;
+          this.render();
+        });
+        window.addEventListener("touchend", () => { dragging = false; });
+
+        this.mainCanvas.addEventListener("mousemove", (e) => this.handleCanvasHover(e));
+
+        this.setupDropzone("imgDropzone", "imgFileInput", (file) => this.loadImageFile(file));
+        this.setupDropzone("slyDropzone", "slyFileInput", (file) => this.loadSlyFile(file));
+        this.setupDropzone("cubeDropzone", "cubeFileInput", (file) => this.loadCubeFile(file));
+
+        document.getElementById("btnSampleCC").onclick = () => this.loadSampleChart("colorchecker");
+        document.getElementById("btnSampleRamp").onclick = () => this.loadSampleChart("ramp");
+        document.getElementById("btnSamplePortrait").onclick = () => this.loadSampleChart("portrait");
+        document.getElementById("btnSampleLandscape").onclick = () => this.loadSampleChart("landscape");
+      }
+
+      setupDropzone(dropzoneId, inputId, handler) {
+        const dropzone = document.getElementById(dropzoneId);
+        const input = document.getElementById(inputId);
+
+        dropzone.onclick = () => input.click();
+        input.onchange = (e) => {
+          if (e.target.files && e.target.files[0]) {
+            handler(e.target.files[0]);
+          }
+        };
+
+        dropzone.ondragover = (e) => {
+          e.preventDefault();
+          dropzone.classList.add("dragover");
+        };
+        dropzone.ondragleave = () => dropzone.classList.remove("dragover");
+        dropzone.ondrop = (e) => {
+          e.preventDefault();
+          dropzone.classList.remove("dragover");
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handler(e.dataTransfer.files[0]);
+          }
+        };
+      }
+
+      loadImageFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const img = new Image();
+          img.onload = () => {
+            this.sourceImg = img;
+            this.imgBadge.textContent = `${file.name} (${img.width}×${img.height})`;
+            this.imgBadge.style.display = "inline-flex";
+            document.querySelectorAll(".sample-btn").forEach(b => b.classList.remove("active"));
+            this.processAndRender();
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      }
+
+      loadSlyFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            this.slyData = SLYData.fromArrayBuffer(e.target.result);
+            this.slyBadge.textContent = `${this.slyData.name}.SLY (${this.slyData.version === 2 ? 'v2 多管线' : 'v1'})`;
+            this.slyBadge.style.display = "inline-flex";
+            this.slyInfoCard.style.display = "block";
+            this.slyDisplayName.textContent = `预设名称: ${this.slyData.name}`;
+            
+            const verEl = document.getElementById("slyVerVal");
+            if (verEl) verEl.textContent = `v${this.slyData.version}`;
+            const modeEl = document.getElementById("slyModeVal");
+            if (modeEl) modeEl.textContent = this.slyData.base_color_mode.toUpperCase();
+            const wbEl = document.getElementById("slyWbVal");
+            if (wbEl) wbEl.textContent = `${this.slyData.lb} / ${this.slyData.cc}`;
+            const toneEl = document.getElementById("slyToneVal");
+            if (toneEl) toneEl.textContent = this.slyData.cinema_tone;
+            const depthEl = document.getElementById("slyDepthsVal");
+            if (depthEl) depthEl.textContent = this.slyData.depths ? this.slyData.depths.join(", ") : "0, 0, 0, 0, 0, 0";
+
+            this.renderMatrix(this.slyData.matrix);
+            this.renderGammaCurve(this.slyData.gamma);
+            this.processAndRender();
+          } catch (err) {
+            alert(`解析 SLY 失败: ${err.message}`);
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      }
+
+      loadCubeFile(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            this.cubeData = CubeLUT.fromText(e.target.result);
+            this.cubeBadge.textContent = `${this.cubeData.title} (${this.cubeData.size}³)`;
+            this.cubeBadge.style.display = "inline-flex";
+            this.refCubeRadio.disabled = false;
+            this.refCubeRadio.checked = true;
+            this.compRef = "cube";
+            this.processAndRender();
+          } catch (err) {
+            alert(`解析 CUBE 失败: ${err.message}`);
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      loadSampleChart(type) {
+        document.querySelectorAll(".sample-btn").forEach(b => b.classList.remove("active"));
+        if (type === "colorchecker") document.getElementById("btnSampleCC").classList.add("active");
+        if (type === "ramp") document.getElementById("btnSampleRamp").classList.add("active");
+        if (type === "portrait") document.getElementById("btnSamplePortrait").classList.add("active");
+        if (type === "landscape") document.getElementById("btnSampleLandscape").classList.add("active");
+
+        const cvs = document.createElement("canvas");
+        cvs.width = 720;
+        cvs.height = 480;
+        const c = cvs.getContext("2d");
+
+        if (type === "colorchecker") {
+          c.fillStyle = "#1e1e1e";
+          c.fillRect(0, 0, 720, 480);
+          const cols = 6, rows = 4;
+          const pw = 100, ph = 90, gap = 14;
+          const startX = (720 - (cols * pw + (cols - 1) * gap)) / 2;
+          const startY = (480 - (rows * ph + (rows - 1) * gap)) / 2;
+
+          for (let r = 0; r < rows; r++) {
+            for (let col = 0; col < cols; col++) {
+              const idx = r * cols + col;
+              const patch = COLORCHECKER_24[idx];
+              c.fillStyle = `rgb(${patch.srgb.join(",")})`;
+              c.fillRect(startX + col * (pw + gap), startY + r * (ph + gap), pw, ph);
+            }
+          }
+        } else if (type === "ramp") {
+          c.fillStyle = "#111";
+          c.fillRect(0, 0, 720, 480);
+          const gradGray = c.createLinearGradient(40, 0, 680, 0);
+          gradGray.addColorStop(0, "#000");
+          gradGray.addColorStop(1, "#fff");
+          c.fillStyle = gradGray;
+          c.fillRect(40, 40, 640, 90);
+
+          const steps = 21;
+          const sw = 640 / steps;
+          for (let i = 0; i < steps; i++) {
+            const v = Math.round((i / (steps - 1)) * 255);
+            c.fillStyle = `rgb(${v},${v},${v})`;
+            c.fillRect(40 + i * sw, 140, sw, 50);
+          }
+
+          const gradSpec = c.createLinearGradient(40, 0, 680, 0);
+          gradSpec.addColorStop(0, "red");
+          gradSpec.addColorStop(0.17, "yellow");
+          gradSpec.addColorStop(0.33, "green");
+          gradSpec.addColorStop(0.5, "cyan");
+          gradSpec.addColorStop(0.67, "blue");
+          gradSpec.addColorStop(0.83, "magenta");
+          gradSpec.addColorStop(1, "red");
+          c.fillStyle = gradSpec;
+          c.fillRect(40, 200, 640, 90);
+
+          const ramps = [
+            { c: [255, 0, 0], y: 300 },
+            { c: [0, 255, 0], y: 340 },
+            { c: [0, 0, 255], y: 380 },
+            { c: [214, 150, 130], y: 420 },
+          ];
+          for (let ramp of ramps) {
+            const gr = c.createLinearGradient(40, 0, 680, 0);
+            gr.addColorStop(0, "#808080");
+            gr.addColorStop(1, `rgb(${ramp.c.join(",")})`);
+            c.fillStyle = gr;
+            c.fillRect(40, ramp.y, 640, 30);
+          }
+        } else if (type === "portrait") {
+          c.fillStyle = "#3a3d40";
+          c.fillRect(0, 0, 720, 480);
+          const gradSkin = c.createRadialGradient(360, 240, 30, 360, 240, 200);
+          gradSkin.addColorStop(0, "#f8d2b8");
+          gradSkin.addColorStop(0.5, "#d69a7c");
+          gradSkin.addColorStop(1, "#7d4834");
+          c.fillStyle = gradSkin;
+          c.beginPath();
+          c.arc(360, 240, 160, 0, Math.PI * 2);
+          c.fill();
+        } else if (type === "landscape") {
+          const skyGrad = c.createLinearGradient(0, 0, 0, 240);
+          skyGrad.addColorStop(0, "#2b6cb0");
+          skyGrad.addColorStop(0.7, "#e28743");
+          skyGrad.addColorStop(1, "#eab676");
+          c.fillStyle = skyGrad;
+          c.fillRect(0, 0, 720, 240);
+
+          const groundGrad = c.createLinearGradient(0, 240, 0, 480);
+          groundGrad.addColorStop(0, "#3e5c36");
+          groundGrad.addColorStop(0.5, "#1e3a1e");
+          groundGrad.addColorStop(1, "#0d1b0d");
+          c.fillStyle = groundGrad;
+          c.fillRect(0, 240, 720, 240);
+        }
+
+        const img = new Image();
+        img.onload = () => {
+          this.sourceImg = img;
+          this.imgBadge.textContent = `内置: ${type}`;
+          this.imgBadge.style.display = "inline-flex";
+          this.processAndRender();
+        };
+        img.src = cvs.toDataURL();
+      }
+
+      /* ==========================================================================
+         TIERED PROCESSING: STAGE 1 (INSTANT PREVIEW) + STAGE 2 (MULTI-CORE FULL-RES)
+         ========================================================================== */
+      processAndRender() {
+        if (!this.sourceImg) return;
+
+        const origW = this.sourceImg.width;
+        const origH = this.sourceImg.height;
+
+        // Stage 1: Fast Interactive Preview Canvas (Downsample to max 2048px if huge)
+        const MAX_PREVIEW_EDGE = 2048;
+        let prevW = origW;
+        let prevH = origH;
+        if (Math.max(origW, origH) > MAX_PREVIEW_EDGE) {
+          const scale = MAX_PREVIEW_EDGE / Math.max(origW, origH);
+          prevW = Math.round(origW * scale);
+          prevH = Math.round(origH * scale);
+        }
+
+        this.mainCanvas.width = prevW;
+        this.mainCanvas.height = prevH;
+
+        // Draw preview resolution
+        this.ctx.drawImage(this.sourceImg, 0, 0, prevW, prevH);
+        const prevImgData = this.ctx.getImageData(0, 0, prevW, prevH);
+        this.cachedSourceData = prevImgData;
+
+        // If multi-core is available and image is large (> 2M pixels), schedule Stage 2 parallel workers
+        const isLargeImage = (origW * origH) > 2000000;
+        
+        if (this.workerPool.isAvailable && isLargeImage) {
+          // Fast preview processing on viewport
+          this.processSingleThread(prevImgData, prevW, prevH, true);
+          this.render();
+          
+          // Launch Stage 2: Background Multi-Core Full-Resolution Processing
+          this.dispatchMultiCoreJob(this.sourceImg, origW, origH);
+        } else if (this.workerPool.isAvailable && !isLargeImage) {
+          // For standard images, dispatch workers directly to process
+          this.dispatchMultiCoreJob(this.sourceImg, prevW, prevH, true);
+        } else {
+          // Fallback to fast single thread
+          this.processSingleThread(prevImgData, prevW, prevH, false);
+          this.render();
+        }
+
+        this.updateColorCheckerPatches();
+      }
+
+      // Fast single-threaded processing for viewport
+      processSingleThread(srcImgData, w, h, isFastPreview) {
+        const totalPixels = w * h;
+        const srcBuf = srcImgData.data;
+
+        const refImgData = this.ctx.createImageData(w, h);
+        const slyImgData = this.ctx.createImageData(w, h);
+        const heatImgData = this.ctx.createImageData(w, h);
+
+        const refBuf = refImgData.data;
+        const slyBuf = slyImgData.data;
+        const heatBuf = heatImgData.data;
+
+        const useCube = (this.compRef === "cube" && this.cubeData);
+        const sampleStep = Math.max(1, Math.floor(totalPixels / 50000));
+        const samples = [];
+        let deSum = 0, deMax = 0;
+
+        for (let i = 0; i < totalPixels; i++) {
+          const idx = i * 4;
+          const sr = srcBuf[idx];
+          const sg = srcBuf[idx + 1];
+          const sb = srcBuf[idx + 2];
+
+          const r = sr / 255.0;
+          const g = sg / 255.0;
+          const b = sb / 255.0;
+
+          // Reference
+          let rr = sr, rg = sg, rb = sb;
+          if (useCube) {
+            const [cr, cg, cb] = this.cubeData.apply(r, g, b);
+            rr = (cr * 255.0 + 0.5) | 0;
+            rg = (cg * 255.0 + 0.5) | 0;
+            rb = (cb * 255.0 + 0.5) | 0;
+          }
+          refBuf[idx] = rr;
+          refBuf[idx + 1] = rg;
+          refBuf[idx + 2] = rb;
+          refBuf[idx + 3] = 255;
+
+          // SLY
+          let slyR = sr, slyG = sg, slyB = sb;
+          if (this.slyData) {
+            const [so_r, so_g, so_b] = this.slyData.apply(r, g, b);
+            slyR = (so_r * 255.0 + 0.5) | 0;
+            slyG = (so_g * 255.0 + 0.5) | 0;
+            slyB = (so_b * 255.0 + 0.5) | 0;
+          }
+          slyBuf[idx] = slyR;
+          slyBuf[idx + 1] = slyG;
+          slyBuf[idx + 2] = slyB;
+          slyBuf[idx + 3] = 255;
+
+          // Delta E & Heatmap
+          const labRef = ColorScience.rgbToLab(rr, rg, rb);
+          const labSly = ColorScience.rgbToLab(slyR, slyG, slyB);
+          const de = ColorScience.deltaE00(labRef, labSly);
+
+          const [hr, hg, hb, ha] = ColorScience.deltaEToHeatmapColor(de);
+          heatBuf[idx] = hr;
+          heatBuf[idx + 1] = hg;
+          heatBuf[idx + 2] = hb;
+          heatBuf[idx + 3] = ha;
+
+          if (i % sampleStep === 0) {
+            samples.push(de);
+            deSum += de;
+            if (de > deMax) deMax = de;
+          }
+        }
+
+        this.cachedRefData = refImgData;
+        this.cachedSlyData = slyImgData;
+        this.cachedHeatmapData = heatImgData;
+
+        samples.sort((a, b) => a - b);
+        const mean = samples.length ? deSum / samples.length : 0;
+        const p95 = samples.length ? samples[Math.floor(samples.length * 0.95)] : 0;
+        this.metrics = { mean, p95, max: deMax };
+        this.updateMetricsUI();
+      }
+
+      // Multi-core parallel dispatch
+      dispatchMultiCoreJob(imgSource, w, h, isDirectViewport) {
+        const pool = this.workerPool;
+        const numWorkers = pool.workers.length;
+
+        // Show progress banner
+        this.progressBanner.style.display = "flex";
+        this.progressBarFill.style.width = "0%";
+        const totalMP = ((w * h) / 1000000).toFixed(1);
+        this.progressText.textContent = `多核并行计算中 (${numWorkers} 线程): 0% | ${totalMP} MP`;
+
+        // Extract image buffer
+        const offCanvas = document.createElement("canvas");
+        offCanvas.width = w;
+        offCanvas.height = h;
+        const offCtx = offCanvas.getContext("2d");
+        offCtx.drawImage(imgSource, 0, 0, w, h);
+        const fullImgData = offCtx.getImageData(0, 0, w, h);
+
+        const totalPixels = w * h;
+        const rowsPerWorker = Math.ceil(h / numWorkers);
+
+        let completedWorkers = 0;
+        let totalDeSum = 0;
+        let globalDeMax = 0;
+        let totalSampleCount = 0;
+        let aggregatedSamples = [];
+
+        const startTime = performance.now();
+
+        for (let i = 0; i < numWorkers; i++) {
+          const startRow = i * rowsPerWorker;
+          const endRow = Math.min(h, (i + 1) * rowsPerWorker);
+          const chunkHeight = Math.max(0, endRow - startRow);
+          const chunkPixels = chunkHeight * w;
+
+          if (chunkPixels <= 0) {
+            completedWorkers++;
+            continue;
+          }
+
+          const startOffset = startRow * w * 4;
+          const endOffset = endRow * w * 4;
+          const chunkSrcBytes = fullImgData.data.slice(startOffset, endOffset);
+
+          const worker = pool.workers[i];
+
+          worker.onmessage = (e) => {
+            completedWorkers++;
+            const res = e.data;
+
+            totalDeSum += res.deSum;
+            if (res.deMax > globalDeMax) globalDeMax = res.deMax;
+
+            const chunkSamples = new Float32Array(res.samplesBuffer);
+            for (let s = 0; s < chunkSamples.length; s++) {
+              aggregatedSamples.push(chunkSamples[s]);
+            }
+
+            const pct = Math.round((completedWorkers / numWorkers) * 100);
+            this.progressBarFill.style.width = `${pct}%`;
+            this.progressText.textContent = `多核并行计算中 (${numWorkers} 线程): ${pct}% | ${totalMP} MP`;
+
+            if (completedWorkers === numWorkers) {
+              const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
+              aggregatedSamples.sort((a, b) => a - b);
+              const mean = aggregatedSamples.length ? (totalDeSum / aggregatedSamples.length) : 0;
+              const p95 = aggregatedSamples.length ? aggregatedSamples[Math.floor(aggregatedSamples.length * 0.95)] : 0;
+
+              this.metrics = { mean, p95, max: globalDeMax };
+              this.updateMetricsUI();
+
+              this.progressText.textContent = `多核质检完成 (耗时: ${elapsed}s, ${numWorkers} 线程) ✓`;
+              setTimeout(() => {
+                this.progressBanner.style.opacity = "0";
+                setTimeout(() => {
+                  this.progressBanner.style.display = "none";
+                  this.progressBanner.style.opacity = "1";
+                }, 300);
+              }, 2500);
+            }
+          };
+
+          worker.postMessage({
+            chunkIndex: i,
+            srcBuffer: chunkSrcBytes.buffer,
+            numPixels: chunkPixels,
+            slyMatrix: this.slyData ? this.slyData.matrix : null,
+            slyGamma: this.slyData ? this.slyData.gamma : null,
+            cubeData: (this.compRef === "cube" && this.cubeData) ? this.cubeData.data : null,
+            cubeSize: (this.compRef === "cube" && this.cubeData) ? this.cubeData.size : 0,
+            useCube: (this.compRef === "cube" && this.cubeData !== null),
+            sampleStep: Math.max(1, Math.floor(chunkPixels / (50000 / numWorkers)))
+          }, [chunkSrcBytes.buffer]);
+        }
+      }
+
+      render() {
+        if (!this.cachedSourceData) return;
+
+        const w = this.mainCanvas.width;
+        const h = this.mainCanvas.height;
+
+        if (this.viewMode === "target") {
+          this.ctx.putImageData(this.cachedSlyData, 0, 0);
+        } else if (this.viewMode === "source") {
+          this.ctx.putImageData(this.cachedRefData, 0, 0);
+        } else if (this.viewMode === "heatmap") {
+          this.ctx.putImageData(this.cachedHeatmapData, 0, 0);
+        } else if (this.viewMode === "wipe") {
+          const splitX = Math.round(w * this.splitPos);
+          this.ctx.putImageData(this.cachedRefData, 0, 0);
+          if (splitX < w) {
+            const rightW = w - splitX;
+            this.ctx.putImageData(this.cachedSlyData, 0, 0, splitX, 0, rightW, h);
+          }
+        }
+
+        this.labelLeft.textContent = (this.compRef === "cube" && this.cubeData) ? "原版 3D LUT (CUBE)" : "原片 (Raw)";
+        this.labelRight.textContent = this.slyData ? `${this.slyData.name} (SLY)` : "SLY 效果";
+      }
+
+      updateMetricsUI() {
+        if (!this.slyData) {
+          this.meanDeltaEEl.textContent = "--";
+          this.p95DeltaEEl.textContent = "--";
+          this.maxDeltaEEl.textContent = "--";
+          this.metricGradeEl.textContent = "等待载入预设";
+          this.metricGradeEl.className = "metric-status status-good";
+          return;
+        }
+
+        const m = this.metrics;
+        this.meanDeltaEEl.textContent = m.mean.toFixed(2);
+        this.p95DeltaEEl.textContent = m.p95.toFixed(2);
+        this.maxDeltaEEl.textContent = m.max.toFixed(2);
+
+        if (m.mean < 1.8 && m.p95 < 3.5) {
+          this.metricGradeEl.textContent = "保真度极佳 (Excellent)";
+          this.metricGradeEl.className = "metric-status status-excellent";
+        } else if (m.mean < 3.2 && m.p95 < 6.0) {
+          this.metricGradeEl.textContent = "保真度良好 (Good)";
+          this.metricGradeEl.className = "metric-status status-good";
+        } else if (m.mean < 5.0) {
+          this.metricGradeEl.textContent = "部分色差可察觉 (Fair)";
+          this.metricGradeEl.className = "metric-status status-fair";
+        } else {
+          this.metricGradeEl.textContent = "色差明显 (Noticeable)";
+          this.metricGradeEl.className = "metric-status status-poor";
+        }
+      }
+
+      updateColorCheckerPatches() {
+        this.patchGrid.innerHTML = "";
+        const useCube = (this.compRef === "cube" && this.cubeData);
+
+        for (let patch of COLORCHECKER_24) {
+          const r = patch.srgb[0] / 255.0;
+          const g = patch.srgb[1] / 255.0;
+          const b = patch.srgb[2] / 255.0;
+
+          let refR = r, refG = g, refB = b;
+          if (useCube) {
+            [refR, refG, refB] = this.cubeData.apply(r, g, b);
+          }
+
+          let slyR = r, slyG = g, slyB = b;
+          if (this.slyData) {
+            [slyR, slyG, slyB] = this.slyData.apply(r, g, b);
+          }
+
+          const labRef = ColorScience.rgbToLab((refR * 255.0 + 0.5) | 0, (refG * 255.0 + 0.5) | 0, (refB * 255.0 + 0.5) | 0);
+          const labSly = ColorScience.rgbToLab((slyR * 255.0 + 0.5) | 0, (slyG * 255.0 + 0.5) | 0, (slyB * 255.0 + 0.5) | 0);
+          const de = ColorScience.deltaE00(labRef, labSly);
+
+          const cell = document.createElement("div");
+          cell.className = "patch-cell";
+          cell.title = `${patch.name}\nRef: rgb(${Math.round(refR*255)}, ${Math.round(refG*255)}, ${Math.round(refB*255)})\nSLY: rgb(${Math.round(slyR*255)}, ${Math.round(slyG*255)}, ${Math.round(slyB*255)})\nΔE₀₀: ${de.toFixed(2)}`;
+
+          const left = document.createElement("div");
+          left.className = "patch-split-left";
+          left.style.backgroundColor = `rgb(${Math.round(refR * 255)}, ${Math.round(refG * 255)}, ${Math.round(refB * 255)})`;
+
+          const right = document.createElement("div");
+          right.className = "patch-split-right";
+          right.style.backgroundColor = `rgb(${Math.round(slyR * 255)}, ${Math.round(slyG * 255)}, ${Math.round(slyB * 255)})`;
+
+          const tag = document.createElement("div");
+          tag.className = "patch-de-tag";
+          tag.textContent = de.toFixed(1);
+
+          cell.appendChild(left);
+          cell.appendChild(right);
+          cell.appendChild(tag);
+          this.patchGrid.appendChild(cell);
+        }
+      }
+
+      renderMatrix(m) {
+        this.matrixDisplay.innerHTML = "";
+        for (let v of m) {
+          const cell = document.createElement("div");
+          cell.className = "matrix-cell";
+          cell.textContent = v;
+          this.matrixDisplay.appendChild(cell);
+        }
+      }
+
+      renderGammaCurve(gamma) {
+        const c = this.curveCtx;
+        const w = this.curveCanvas.width;
+        const h = this.curveCanvas.height;
+
+        c.fillStyle = "#090c10";
+        c.fillRect(0, 0, w, h);
+
+        c.strokeStyle = "#21262d";
+        c.lineWidth = 1;
+        for (let i = 1; i < 4; i++) {
+          c.beginPath();
+          c.moveTo((w / 4) * i, 0);
+          c.lineTo((w / 4) * i, h);
+          c.stroke();
+
+          c.beginPath();
+          c.moveTo(0, (h / 4) * i);
+          c.lineTo(w, (h / 4) * i);
+          c.stroke();
+        }
+
+        c.strokeStyle = "#484f58";
+        c.setLineDash([3, 3]);
+        c.beginPath();
+        c.moveTo(0, h);
+        c.lineTo(w, 0);
+        c.stroke();
+        c.setLineDash([]);
+
+        c.strokeStyle = "#58a6ff";
+        c.lineWidth = 2;
+        c.beginPath();
+        for (let i = 0; i < 1024; i++) {
+          const x = (i / 1023) * w;
+          const y = h - (gamma[i] / 1023) * h;
+          if (i === 0) c.moveTo(x, y);
+          else c.lineTo(x, y);
+        }
+        c.stroke();
+      }
+
+      handleCanvasHover(e) {
+        if (!this.cachedRefData || !this.cachedSlyData) return;
+
+        const rect = this.mainCanvas.getBoundingClientRect();
+        const scaleX = this.mainCanvas.width / rect.width;
+        const scaleY = this.mainCanvas.height / rect.height;
+
+        const px = Math.floor((e.clientX - rect.left) * scaleX);
+        const py = Math.floor((e.clientY - rect.top) * scaleY);
+
+        if (px < 0 || px >= this.mainCanvas.width || py < 0 || py >= this.mainCanvas.height) return;
+
+        const idx = (py * this.mainCanvas.width + px) * 4;
+        const rRef = this.cachedRefData.data[idx];
+        const gRef = this.cachedRefData.data[idx + 1];
+        const bRef = this.cachedRefData.data[idx + 2];
+
+        const rSly = this.cachedSlyData.data[idx];
+        const gSly = this.cachedSlyData.data[idx + 1];
+        const bSly = this.cachedSlyData.data[idx + 2];
+
+        const labRef = ColorScience.rgbToLab(rRef, gRef, bRef);
+        const labSly = ColorScience.rgbToLab(rSly, gSly, bSly);
+        const de = ColorScience.deltaE00(labRef, labSly);
+
+        this.inspectColorRef.style.backgroundColor = `rgb(${rRef},${gRef},${bRef})`;
+        this.inspectTextRef.textContent = `Ref: (${rRef}, ${gRef}, ${bRef})`;
+
+        this.inspectColorSly.style.backgroundColor = `rgb(${rSly},${gSly},${bSly})`;
+        this.inspectTextSly.textContent = `SLY: (${rSly}, ${gSly}, ${bSly})`;
+
+        this.inspectDeltaE.textContent = `ΔE₀₀: ${de.toFixed(2)}`;
+      }
+    }
+
+    window.addEventListener("DOMContentLoaded", () => {
+      window.slyStudio = new SlyStudioApp();
+    });
+  </script>
+</body>
+</html>

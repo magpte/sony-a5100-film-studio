@@ -23,7 +23,13 @@ def find_openssl():
     path = shutil.which('openssl')
     if path:
         return path
-    for candidate in ['/opt/homebrew/bin/openssl', '/usr/local/bin/openssl', '/usr/bin/openssl']:
+    for candidate in [
+        r'C:\Program Files\Git\usr\bin\openssl.exe',
+        r'C:\Program Files\Git\mingw64\bin\openssl.exe',
+        '/opt/homebrew/bin/openssl',
+        '/usr/local/bin/openssl',
+        '/usr/bin/openssl'
+    ]:
         if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
             return candidate
     return 'openssl'

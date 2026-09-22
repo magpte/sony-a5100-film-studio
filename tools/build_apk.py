@@ -23,6 +23,7 @@ from film_profiles import EXPECTED_HOOK, combined_profiles
 from profile_loading import field_reference, empty_init, write_profile_holders
 from filter_icons import patch_icons
 from live_preview import patch_live_preview
+from generate_sly_smali import get_sly_smali_hook
 
 OLD = 'com.sony.imaging.app.pictureeffectplus'
 NEW = 'com.yuki.imaging.app.pictureeffectplus'
@@ -45,10 +46,115 @@ def quote(s):
 
 def lookup_method(name, profiles, kind, movie=False):
     ret = {'gamma':'[B','matrix':'[I','name':'Ljava/lang/String;','guide':'Ljava/lang/String;'}[kind]
-    lines=[f'.method public static {name}(Ljava/lang/String;){ret}', '    .locals 2',
+    lines=[f'.method public static {name}(Ljava/lang/String;){ret}', '    .locals 4',
            '    if-eqz p0, :none']
     if kind in ('gamma', 'matrix'):
         lines += [f'    invoke-static {{}}, {HOOK}->getStrength()I', '    move-result v1']
+
+    # SD Card Custom LUT handling
+    if kind == 'matrix':
+        lines += [
+            '    const-string v0, "custom-lut"',
+            '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
+            '    move-result v0',
+            '    if-eqz v0, :not_custom_matrix',
+            f'    invoke-static {{}}, {HOOK}->initSlyList()V',
+            f'    sget-object v0, {HOOK}->sSlyMatrix:[I',
+            '    if-eqz v0, :custom_mat_default',
+            '    return-object v0',
+            '    :custom_mat_default',
+            '    const/16 v0, 0x9',
+            '    new-array v0, v0, [I',
+            '    const/4 v1, 0x0',
+            '    const/16 v2, 0x400',
+            '    aput v2, v0, v1',
+            '    const/4 v1, 0x4',
+            '    aput v2, v0, v1',
+            '    const/4 v1, 0x8',
+            '    aput v2, v0, v1',
+            '    return-object v0',
+            '    :not_custom_matrix',
+        ]
+    elif kind == 'gamma':
+        lines += [
+            '    const-string v0, "custom-lut"',
+            '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
+            '    move-result v0',
+            '    if-eqz v0, :not_custom_gamma',
+            f'    invoke-static {{}}, {HOOK}->initSlyList()V',
+            f'    sget-object v0, {HOOK}->sSlyGamma:[B',
+            '    if-eqz v0, :custom_gamma_default',
+            '    return-object v0',
+            '    :custom_gamma_default',
+            '    const/16 v0, 0x800',
+            '    new-array v0, v0, [B',
+            '    const/4 v1, 0x0',
+            '    :init_lin_gamma',
+            '    const/16 v2, 0x400',
+            '    if-ge v1, v2, :done_lin_gamma',
+            '    mul-int/lit8 v2, v1, 0x2',
+            '    and-int/lit16 v3, v1, 0xff',
+            '    int-to-byte v3, v3',
+            '    aput-byte v3, v0, v2',
+            '    add-int/lit8 v2, v2, 0x1',
+            '    shr-int/lit8 v3, v1, 0x8',
+            '    int-to-byte v3, v3',
+            '    aput-byte v3, v0, v2',
+            '    add-int/lit8 v1, v1, 0x1',
+            '    goto :init_lin_gamma',
+            '    :done_lin_gamma',
+            '    return-object v0',
+            '    :not_custom_gamma',
+        ]
+    elif kind == 'name':
+        lines += [
+            '    const-string v0, "custom-lut"',
+            '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
+            '    move-result v0',
+            '    if-eqz v0, :not_custom_name',
+            f'    invoke-static {{}}, {HOOK}->initSlyList()V',
+            f'    sget v0, {HOOK}->sSlyCount:I',
+            '    if-lez v0, :custom_empty_name',
+            f'    sget-object v0, {HOOK}->sSlyNames:[Ljava/lang/String;',
+            '    if-eqz v0, :custom_empty_name',
+            f'    sget v1, {HOOK}->sSlyCurrentIndex:I',
+            '    aget-object v0, v0, v1',
+            '    if-eqz v0, :custom_empty_name',
+            '    new-instance v0, Ljava/lang/StringBuilder;',
+            '    invoke-direct {v0}, Ljava/lang/StringBuilder;-><init>()V',
+            '    const-string v1, "C L "',
+            '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;',
+            '    move-result-object v0',
+            f'    sget-object v1, {HOOK}->sSlyNames:[Ljava/lang/String;',
+            f'    sget v2, {HOOK}->sSlyCurrentIndex:I',
+            '    aget-object v1, v1, v2',
+            '    invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;->append(Ljava/lang/String;)Ljava/lang/StringBuilder;',
+            '    move-result-object v0',
+            '    invoke-virtual {v0}, Ljava/lang/StringBuilder;->toString()Ljava/lang/String;',
+            '    move-result-object v0',
+            '    return-object v0',
+            '    :custom_empty_name',
+            '    const-string v0, "C L (无SD卡LUT)"',
+            '    return-object v0',
+            '    :not_custom_name',
+        ]
+    elif kind == 'guide':
+        lines += [
+            '    const-string v0, "custom-lut"',
+            '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
+            '    move-result v0',
+            '    if-eqz v0, :not_custom_guide',
+            f'    invoke-static {{}}, {HOOK}->initSlyList()V',
+            f'    sget v0, {HOOK}->sSlyCount:I',
+            '    if-lez v0, :custom_empty_guide',
+            '    const-string v0, "SD卡外置LUT (放入 /sdcard/SONY_LUT/*.sly)"',
+            '    return-object v0',
+            '    :custom_empty_guide',
+            '    const-string v0, "未检测到SD卡LUT (请放入 /sdcard/SONY_LUT/*.sly)"',
+            '    return-object v0',
+            '    :not_custom_guide',
+        ]
+
     for i,p in enumerate(profiles):
         lines += [f'    const-string v0, {quote(p["id"])}',
                   '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
@@ -79,7 +185,11 @@ def lookup_method(name, profiles, kind, movie=False):
 
 def preset_check(profiles):
     # Menu availability checks must not initialize the profile arrays.
-    lines=['.method public static isRicohPreset(Ljava/lang/String;)Z', '    .locals 1']
+    lines=['.method public static isRicohPreset(Ljava/lang/String;)Z', '    .locals 1',
+           '    const-string v0, "custom-lut"',
+           '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
+           '    move-result v0',
+           '    if-nez v0, :known']
     for p in profiles:
         lines += [f'    const-string v0, {quote(p["id"])}',
                   '    invoke-virtual {v0, p0}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z',
@@ -95,6 +205,8 @@ def preset_ids(profiles):
     for p in profiles:
         lines += [f'    const-string v1, {quote(p["id"])}',
                   '    invoke-virtual {v0, v1}, Ljava/util/ArrayList;->add(Ljava/lang/Object;)Z']
+    lines += ['    const-string v1, "custom-lut"',
+              '    invoke-virtual {v0, v1}, Ljava/util/ArrayList;->add(Ljava/lang/Object;)Z']
     return '\n'.join(lines+['    return-object v0','.end method'])
 
 def movie_hook():
@@ -155,6 +267,35 @@ def movie_settings_log():
               '    return-void', '    :catch', '    move-exception v0', '    return-void', '.end method']
     return '\n'.join(lines)
 
+def wb_shift_methods(hook):
+    return f'''.method public static getWhitebalanceShiftLB(Ljava/lang/String;)I
+    .locals 1
+    if-nez p0, :none
+    const-string v0, "custom-lut"
+    invoke-virtual {{v0, p0}}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :none
+    sget v0, {hook}->sSlyLb:I
+    return v0
+    :none
+    const/4 v0, 0x0
+    return v0
+.end method
+
+.method public static getWhitebalanceShiftCC(Ljava/lang/String;)I
+    .locals 1
+    if-nez p0, :none
+    const-string v0, "custom-lut"
+    invoke-virtual {{v0, p0}}, Ljava/lang/String;->equals(Ljava/lang/Object;)Z
+    move-result v0
+    if-eqz v0, :none
+    sget v0, {hook}->sSlyCc:I
+    return v0
+    :none
+    const/4 v0, 0x0
+    return v0
+.end method'''
+
 def patch_hook(path,profiles,upstream_hook,movie=False):
     text=path.read_text()
     text=replace_method(text,'<clinit>()V',empty_init())
@@ -163,6 +304,9 @@ def patch_hook(path,profiles,upstream_hook,movie=False):
                         ('getFilterName','name'),('getFilterGuide','guide')]:
         ret={'gamma':'[B','matrix':'[I','name':'Ljava/lang/String;','guide':'Ljava/lang/String;'}[kind]
         text=replace_method(text,method+'(Ljava/lang/String;)'+ret,lookup_method(method,profiles,kind,movie))
+    wb_methods = wb_shift_methods(HOOK).split('\n\n')
+    text=replace_method(text,'getWhitebalanceShiftLB(Ljava/lang/String;)I',wb_methods[0].strip())
+    text=replace_method(text,'getWhitebalanceShiftCC(Ljava/lang/String;)I',wb_methods[1].strip())
     original=upstream_hook.read_text()
     apply=re.search(r'^\.method public static applyHook\([\s\S]*?^\.end method',original,re.M).group()
     # Fail closed if matrix/gamma handles are unavailable, instead of reporting success.
@@ -172,6 +316,7 @@ def patch_hook(path,profiles,upstream_hook,movie=False):
     apply=apply.replace('    :catch_0\n','    :fuji_failed\n    const/4 v0, 0x0\n    return v0\n\n    :catch_0\n')
     text=replace_method(text,'applyHook('+CTRL+'Landroid/util/Pair;Ljava/lang/String;)Z',apply)
     text+='\n'+preset_ids(profiles)+'\n'+movie_hook()+'\n'+strength_methods(HOOK,CTRL)+'\n'
+    text+='\n'+get_sly_smali_hook(HOOK)+'\n'
     if movie:
         text+='\n'+movie_settings_log()+'\n'
     text=text.replace('"RicohHook"','"FujiHook"').replace('Ricoh preset','Fuji approximation')
@@ -190,6 +335,12 @@ def patch_menu(base,profiles):
         item.attrib.update(ItemId=p['id'],Value=p['id'],Title=p['name'],DisplayName=p['name'],
                            ExecType='SET_VALUE',NextMenuID='')
         parent.append(item)
+    # Append custom-lut at the end of film styles
+    custom_item=copy.deepcopy(template)
+    for child in list(custom_item):custom_item.remove(child)
+    custom_item.attrib.update(ItemId='custom-lut',Value='custom-lut',Title='C L',DisplayName='C L',
+                              ExecType='SET_VALUE',NextMenuID='')
+    parent.append(custom_item)
     tree.write(path,encoding='utf-8',xml_declaration=True)
     patch_strength_menu(base, OLD+'.shooting.camera.PictureEffectPlusController')
     ctrl=base/'smali'/OLD.replace('.','/')/'shooting/camera/PictureEffectPlusController.smali'
@@ -283,7 +434,7 @@ def patch_menu(base,profiles):
            '    new-instance v0, Ljava/util/HashMap;',
            '    invoke-direct {v0}, Ljava/util/HashMap;-><init>()V',
            f'    sput-object v0, {cls}->mItemIconMap:Ljava/util/HashMap;']
-    for p in profiles:
+    for p in profiles + [{'id': 'custom-lut'}]:
         lines += [f'    const-string v1, {quote(p["id"])}',
                   '    const v2, 0x7f020054',
                   '    invoke-static {v2}, Ljava/lang/Integer;->valueOf(I)Ljava/lang/Integer;',
@@ -456,7 +607,8 @@ def main():
     subprocess.run(['java','-jar',str(args.apktool),'d','-r','-f',str(args.input),'-o',str(args.work)],check=True)
     patch_hook(args.work/'smali'/OLD.replace('.','/')/'shooting/camera/RicohHook.smali',profiles,args.upstream_hook,args.movie)
     patch_menu(args.work,profiles)
-    patch_icons(args.work,profiles)
+    all_profiles=profiles+[dict(id='custom-lut',name='C L',family='custom',reference_name='Custom LUT')]
+    patch_icons(args.work,all_profiles)
     if args.movie:patch_movie(args.work)
     patch_live_preview(args.work,profiles)
     rename_package(args.work)
@@ -486,11 +638,11 @@ def main():
     metadata=dict(file=output.name,package=NEW,sha256=hashlib.sha256(output.read_bytes()).hexdigest(),
                   version=VERSION,movie_enabled=args.movie,
                   camera_tested=False,encoded_video_filter_verified=False,
-                  source_apk_sha256=EXPECTED,profiles=len(profiles),
+                  source_apk_sha256=EXPECTED,profiles=len(all_profiles),
                   app_name=APP_NAME,android_version=ANDROID_VERSION,
-                  profile_families={'fujifilm':10,'ricoh':5},
+                  profile_families={'fujifilm':10,'ricoh':5,'custom':1},
                   live_filter_preview=True,preview_debounce_ms=120,
-                  unique_filter_icons=15,lazy_profile_holders=60,
+                  unique_filter_icons=16,lazy_profile_holders=60,
                   startup_timing_measured=False)
     (root/'profiles/film_studio.json').write_text(json.dumps(dict(
         version=VERSION,presets=profiles),ensure_ascii=False,indent=2))
